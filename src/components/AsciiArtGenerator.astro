@@ -1,6 +1,5 @@
 ---
-import { DIGIT_ART, DIGIT_HEIGHT, DIGIT_WIDTH } from "../lib/digitArt.mjs";
-import { buildShiftAscii } from "../lib/aaCore.mjs";
+import { buildShiftAscii } from "../lib/aaCore.ts";
 
 const DEFAULT_FROM_YEAR = "2025";
 const DEFAULT_TO_YEAR = "2026";
@@ -110,6 +109,12 @@ const INITIAL_ASCII = buildShiftAscii(DEFAULT_FROM_YEAR, DEFAULT_TO_YEAR);
     .status {
       font-size: 0.85rem;
     }
+    input {
+      width: 5em;
+    }
+    .aa-output {
+      white-space: pre;
+    }
   </style>
   <div class="panel">
     <h2>年号を入力</h2>
@@ -142,123 +147,58 @@ const INITIAL_ASCII = buildShiftAscii(DEFAULT_FROM_YEAR, DEFAULT_TO_YEAR);
     <pre
       class="ascii-block"
       id="ascii-output"
-      aria-label="年号シフトのASCIIアート">{INITIAL_ASCII}</pre>
+      aria-label="年号シフトのASCIIアート"
+      data-from-year={DEFAULT_FROM_YEAR}
+      data-to-year={DEFAULT_TO_YEAR}>{INITIAL_ASCII}</pre>
     <div class="actions">
       <button type="button" id="copy-button">コピー</button>
       <span class="status" id="copy-status" role="status"></span>
     </div>
   </div>
-  <script
-    type="module"
-    is:inline
-    define:vars={{
-      digitArt: DIGIT_ART,
-      digitHeight: DIGIT_HEIGHT,
-      digitWidth: DIGIT_WIDTH,
-      defaultFromYear: DEFAULT_FROM_YEAR,
-      defaultToYear: DEFAULT_TO_YEAR,
-    }}
-  >
+  <script>
+    import { buildShiftAscii } from "../lib/aaCore.ts";
+
     const generator = document.querySelector(".generator");
 
     if (!generator) {
       console.error("初期化に失敗しました。");
     } else {
-      const sanitizeYear = (value) => value.replace(/\D/g, "").slice(0, 4);
-      const BLANK_CELL = " ".repeat(digitWidth);
-      const isDigit = (value) =>
-        typeof value === "string" && /^[0-9]$/.test(value);
-      const isYear4 = (value) =>
+      const sanitizeYear = (value: string): string =>
+        value.replace(/\D/g, "").slice(0, 4);
+      const isYear4 = (value: string): boolean =>
         typeof value === "string" && /^[0-9]{4}$/.test(value);
 
-      const rtrim = (value) => value.replace(/[ \t]+$/u, "");
+      const fromInput = document.getElementById(
+        "from-year",
+      ) as HTMLInputElement | null;
+      const toInput = document.getElementById(
+        "to-year",
+      ) as HTMLInputElement | null;
+      const outputField = document.getElementById(
+        "ascii-output",
+      ) as HTMLPreElement | null;
+      const asciiPanel = outputField?.closest(
+        ".ascii-panel",
+      ) as HTMLElement | null;
+      const copyButton = document.getElementById(
+        "copy-button",
+      ) as HTMLButtonElement | null;
+      const copyStatus = document.getElementById(
+        "copy-status",
+      ) as HTMLSpanElement | null;
 
-      const getGlyph = (digit) => {
-        if (!isDigit(digit)) return null;
-        const glyph = digitArt[digit];
-        if (!Array.isArray(glyph) || glyph.length !== digitHeight) return null;
-        if (glyph.some((row) => typeof row !== "string")) return null;
-        return glyph;
-      };
-
-      const makeStaticCell = (digit) => {
-        const glyph = getGlyph(digit);
-        if (!glyph) return null;
-        return {
-          rows8: [BLANK_CELL, ...glyph, BLANK_CELL],
-        };
-      };
-
-      const makeShiftCell = (fromDigit, toDigit) => {
-        const fromGlyph = getGlyph(fromDigit);
-        const toGlyph = getGlyph(toDigit);
-        if (!fromGlyph || !toGlyph) return null;
-
-        const stack = [...toGlyph, ...fromGlyph];
-        const shift = 3;
-
-        const topOverflow = stack[shift - 1] ?? BLANK_CELL;
-        const window6 = stack.slice(shift, shift + digitHeight);
-        while (window6.length < digitHeight) window6.push(BLANK_CELL);
-        const bottomOverflow = stack[shift + digitHeight] ?? BLANK_CELL;
-
-        return {
-          rows8: [topOverflow, ...window6, bottomOverflow],
-        };
-      };
-
-      const renderFrame = (cells) => {
-        const rows = Array.from({ length: 8 }, () => "");
-        for (let row = 0; row < 8; row += 1) {
-          rows[row] = cells
-            .map((cell) => cell.rows8[row] ?? BLANK_CELL)
-            .join("");
-        }
-
-        const top = rtrim(rows[0]);
-        const bottom = rtrim(rows[7]);
-        const middle = rows.slice(1, 7).map((line) => rtrim(line));
-
-        const output = [];
-        if (top.length > 0) output.push(top);
-        output.push(...middle);
-        if (bottom.length > 0) output.push(bottom);
-        return output.join("\n");
-      };
-
-      const buildShiftAscii = (fromYearValue, toYearValue) => {
-        if (!isYear4(fromYearValue) || !isYear4(toYearValue)) {
-          return "";
-        }
-        const fromDigits = fromYearValue.split("");
-        const toDigits = toYearValue.split("");
-        const cells = [];
-        for (let i = 0; i < 4; i += 1) {
-          const fromDigit = fromDigits[i];
-          const toDigit = toDigits[i];
-          const cell =
-            fromDigit === toDigit
-              ? makeStaticCell(toDigit)
-              : makeShiftCell(fromDigit, toDigit);
-          if (!cell) return "";
-          cells.push(cell);
-        }
-        return renderFrame(cells);
-      };
-
-      const fromInput = document.getElementById("from-year");
-      const toInput = document.getElementById("to-year");
-      const outputField = document.getElementById("ascii-output");
-      const asciiPanel = outputField?.closest(".ascii-panel");
-      const copyButton = document.getElementById("copy-button");
-      const copyStatus = document.getElementById("copy-status");
+      const defaultFromYear = outputField?.dataset.fromYear ?? "2025";
+      const defaultToYear = outputField?.dataset.toYear ?? "2026";
 
       let fromYear = defaultFromYear;
       let toYear = defaultToYear;
-      let copyResetHandle = null;
+      let copyResetHandle: number | null = null;
       let lastValidAscii = (outputField?.textContent ?? "").trimEnd();
 
-      const updateCopyStatus = (message, isError = false) => {
+      const updateCopyStatus = (
+        message: string | null,
+        isError: boolean = false,
+      ): void => {
         if (!copyStatus) {
           return;
         }
@@ -269,13 +209,15 @@ const INITIAL_ASCII = buildShiftAscii(DEFAULT_FROM_YEAR, DEFAULT_TO_YEAR);
         }
         if (message) {
           copyResetHandle = window.setTimeout(() => {
-            copyStatus.textContent = "";
-            delete copyStatus.dataset.state;
+            if (copyStatus) {
+              copyStatus.textContent = "";
+              delete copyStatus.dataset.state;
+            }
           }, 2000);
         }
       };
 
-      const setOutputDisabled = (disabled) => {
+      const setOutputDisabled = (disabled: boolean): void => {
         if (asciiPanel instanceof HTMLElement) {
           asciiPanel.classList.toggle("is-disabled", disabled);
         }
@@ -287,7 +229,7 @@ const INITIAL_ASCII = buildShiftAscii(DEFAULT_FROM_YEAR, DEFAULT_TO_YEAR);
         }
       };
 
-      const updateOutput = () => {
+      const updateOutput = (): void => {
         const canRender = isYear4(fromYear) && isYear4(toYear);
 
         if (!canRender) {
@@ -312,7 +254,7 @@ const INITIAL_ASCII = buildShiftAscii(DEFAULT_FROM_YEAR, DEFAULT_TO_YEAR);
         }
       };
 
-      fromInput?.addEventListener("input", (event) => {
+      fromInput?.addEventListener("input", (event: Event): void => {
         const input = event.target;
         if (!(input instanceof HTMLInputElement)) {
           return;
@@ -323,7 +265,7 @@ const INITIAL_ASCII = buildShiftAscii(DEFAULT_FROM_YEAR, DEFAULT_TO_YEAR);
         updateOutput();
       });
 
-      toInput?.addEventListener("input", (event) => {
+      toInput?.addEventListener("input", (event: Event): void => {
         const input = event.target;
         if (!(input instanceof HTMLInputElement)) {
           return;
@@ -334,7 +276,7 @@ const INITIAL_ASCII = buildShiftAscii(DEFAULT_FROM_YEAR, DEFAULT_TO_YEAR);
         updateOutput();
       });
 
-      copyButton?.addEventListener("click", async () => {
+      copyButton?.addEventListener("click", async (): Promise<void> => {
         const ascii = buildShiftAscii(fromYear, toYear) || lastValidAscii;
         if (!ascii) {
           updateCopyStatus(

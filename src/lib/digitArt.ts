@@ -1,7 +1,7 @@
-export const DIGIT_HEIGHT = 6;
-export const DIGIT_WIDTH = 4;
+export const DIGIT_HEIGHT = 6 as const;
+export const DIGIT_WIDTH = 4 as const;
 
-export const DIGIT_ART = {
+export const DIGIT_ART: Record<string, readonly [string, string, string, string, string, string]> = {
   "0": ["┏━━┓", "┃┏┓┃", "┃┃┃┃", "┃┃┃┃", "┃┗┛┃", "┗━━┛"],
   "1": [" ┏┓ ", " ┃┃ ", " ┃┃ ", " ┃┃ ", " ┃┃ ", " ┗┛ "],
   "2": ["┏━━┓", "┗━┓┃", "┏━┛┃", "┃┏━┛", "┃┗━┓", "┗━━┛"],
@@ -12,4 +12,4 @@ export const DIGIT_ART = {
   "7": ["┏━━┓", "┗━┓┃", "  ┃┃", "  ┃┃", "  ┃┃", "  ┗┛"],
   "8": ["┏━━┓", "┃┏┓┃", "┃┗┛┃", "┃┏┓┃", "┃┗┛┃", "┗━━┛"],
   "9": ["┏━━┓", "┃┏┓┃", "┃┗┛┃", "┗━┓┃", "┏━┛┃", "┗━━┛"],
-};
+} as const;
